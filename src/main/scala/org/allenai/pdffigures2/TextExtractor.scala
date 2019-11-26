@@ -58,7 +58,12 @@ private class TextExtractor extends PDFTextStripper with Logging {
   override def writeText(doc: PDDocument, outputStream: Writer): Unit = ??? // Use loadText
 
   override def processPage(page: PDPage): Unit = {
-    super.processPage(page)
+    try {
+      super.processPage(page)
+    }
+    catch {
+      case exception: IllegalArgumentException => logger.info(s"Text for file could not be extracted. ${exception}")
+    }
   }
 
   override def startDocument(document: PDDocument): Unit = {

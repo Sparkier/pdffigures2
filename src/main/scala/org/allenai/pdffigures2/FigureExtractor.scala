@@ -214,7 +214,9 @@ object FigureExtractor {
     val pages = (pagesWithFigures ++ pagesWithoutFigures).sortBy(_.pageNumber)
     def figures = pagesWithFigures.flatMap(_.figures)
     def failedCaptions = pagesWithFigures.flatMap(_.failedCaptions)
-    require(pages.head.pageNumber == 0, "Must start with page number 0")
+    if (!pages.isEmpty) {
+      require(pages.head.pageNumber == 0, "Must start with page number 0")
+    }
     require(
       pages
         .sliding(2)

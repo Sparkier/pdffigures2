@@ -53,37 +53,41 @@ object FormattingTextExtractor extends Logging {
     if (nonEmptyCandidates.size >= minConsistentHeaders) {
       // Check for identical text
       val groupedByText = nonEmptyCandidates.map(x => x.text).groupBy(x => x)
-      val (mostCommonText, count) = groupedByText.mapValues(_.size).maxBy(_._2)
-      if (count >= minConsistentHeaders) {
-        candidates.map {
-          case np: Some[Paragraph] if np.get.text == mostCommonText => np
-          case _ => None
-        }
-      } else {
-        // Some headers have different text, they might include page numbers or alternate between
-        // showing authors name and conference titles, ect. So we fall back on looking for lines
-        // that share the same height. In theory we could do some check to make sure there is some
-        // consistency between the text, but in practice this does not seem necessary
-        case class Interval(x1: Double, x2: Double) {
-          def intersects(other: Interval, tol: Double): Boolean =
-            Math.abs(other.x1 - x1) < tol && Math.abs(other.x2 - x2) < tol
-        }
-
-        val heights = nonEmptyCandidates.map(p => Interval(p.boundary.y1, p.boundary.y2))
-        val commonHeight = heights.find { interval =>
-          heights.count(h => h.intersects(interval, 1.0f)) >= minConsistentHeaders
-        }
-        if (commonHeight.isDefined) {
+      if (!groupedByText.isEmpty) {
+        val (mostCommonText, count) = groupedByText.mapValues(_.size).maxBy(_._2)
+        if (count >= minConsistentHeaders) {
           candidates.map {
-            case p: Some[Paragraph] =>
-              val boundary = p.get.boundary
-              val interval = Interval(boundary.y1, boundary.y2)
-              if (interval.intersects(commonHeight.get, 1)) p else None
+            case np: Some[Paragraph] if np.get.text == mostCommonText => np
             case _ => None
           }
         } else {
-          Seq.fill(textPages.size)(None)
+          // Some headers have different text, they might include page numbers or alternate between
+          // showing authors name and conference titles, ect. So we fall back on looking for lines
+          // that share the same height. In theory we could do some check to make sure there is some
+          // consistency between the text, but in practice this does not seem necessary
+          case class Interval(x1: Double, x2: Double) {
+            def intersects(other: Interval, tol: Double): Boolean =
+              Math.abs(other.x1 - x1) < tol && Math.abs(other.x2 - x2) < tol
+          }
+
+          val heights = nonEmptyCandidates.map(p => Interval(p.boundary.y1, p.boundary.y2))
+          val commonHeight = heights.find { interval =>
+            heights.count(h => h.intersects(interval, 1.0f)) >= minConsistentHeaders
+          }
+          if (commonHeight.isDefined) {
+            candidates.map {
+              case p: Some[Paragraph] =>
+                val boundary = p.get.boundary
+                val interval = Interval(boundary.y1, boundary.y2)
+                if (interval.intersects(commonHeight.get, 1)) p else None
+              case _ => None
+            }
+          } else {
+            Seq.fill(textPages.size)(None)
+          }
         }
+      } else {
+        Seq.fill(textPages.size)(None)
       }
     } else {
       Seq.fill(textPages.size)(None)
